@@ -6,8 +6,8 @@
 #include <iostream>
 #include <tchar.h>
 
-const char *help() {
-  return R"(Creates one or more files.
+char const *const help{
+    R"(Creates one or more files.
 Intermediate directories in path will also be created.
 
 mkf path [+ path] [+ ...]
@@ -16,8 +16,7 @@ mkf path [+ path] [+ ...]
 
 Examples:
   mk file ...
-  mk path/to/file ...)";
-}
+  mk path/to/file ...)"};
 
 void makePath(std::filesystem::path const &path) {
   std::filesystem::path parent = path.parent_path();
@@ -34,7 +33,7 @@ int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
       makePath(std::filesystem::path{argv[i]});
     }
   } else {
-    std::cout << help() << std::endl;
+    std::cout << help << std::endl;
   }
 
   return 0;

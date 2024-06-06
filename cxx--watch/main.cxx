@@ -9,6 +9,19 @@
 #include <tchar.h>
 #include <windows.h>
 
+HANDLE stdio_out{GetStdHandle(STD_OUTPUT_HANDLE)};
+HANDLE stdio_err{GetStdHandle(STD_ERROR_HANDLE)};
+void WriteOut(std::wstringstream const &wss) {
+  DWORD bytes_written{0};
+  std::wstring ws{wss.str()};
+  WriteFile(stdio_out, ws.c_str(), ws.size() * sizeof(wchar_t), &bytes_written, NULL);
+}
+void WriteErr(std::wstringstream const &wss) {
+  DWORD bytes_written{0};
+  std::wstring ws{wss.str()};
+  WriteFile(stdio_err, ws.c_str(), ws.size() * sizeof(wchar_t), &bytes_written, NULL);
+}
+
 std::filesystem::path resolvePath(std::filesystem::path const &path) {
   TCHAR lpBuffer[1]{};
   // requiredSize includes space for the terminating null character
@@ -31,9 +44,13 @@ int watchDirectory(std::filesystem::path const &path) {
   overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL);
   HANDLE hDirectory{INVALID_HANDLE_VALUE};
   BOOL bSuccess{0};
-  int restart_delay_ms{1000};
+  int delay_ms{1000};
 
-  std::wcout << "0 " << path.c_str() << std::endl;
+  {
+    std::wstringstream _{};
+    _ << "0 " << path;
+    WriteOut(_);
+  }
 
 _Start:
   while (true) {
@@ -66,7 +83,7 @@ _Start:
       goto _Exception_ReadDirectoryChanges;
 
     // https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
-    DWORD result{WaitForSingleObject(overlapped.hEvent, 1000)};
+    DWORD result{WaitForSingleObject(overlapped.hEvent, delay_ms)};
     if (result == WAIT_OBJECT_0) {
       std::wstringstream out_changes{};
       DWORD bytes_transferred{};
@@ -102,28 +119,34 @@ _Start:
           break;
         }
       }
-      std::wcout << out_changes.str() << std::endl;
+      WriteOut(out_changes);
     }
     CloseHandle(hDirectory);
   }
 
-_Exception_CreateFile:
-  std::cerr << "1 CreateFile. Could not open target directory for watching." << std::endl;
-  Sleep(restart_delay_ms);
+_Exception_CreateFile: {
+  std::wstringstream _{};
+  _ << "1 CreateFile. Could not open target directory for watching.";
+  WriteErr(_);
+  Sleep(delay_ms);
   goto _Start;
+}
 
-_Exception_ReadDirectoryChanges:
-  std::cerr << "2 ReadDirectoryChanges. Possibly too many changes to track." << std::endl;
-  Sleep(restart_delay_ms);
+_Exception_ReadDirectoryChanges: {
+  std::wstringstream _{};
+  _ << "2 ReadDirectoryChanges. Possibly too many changes to track.";
+  WriteErr(_);
+  Sleep(delay_ms);
   goto _Start;
+}
 
 _Exit:
   CloseHandle(hDirectory);
   return 0;
 }
 
-const char *help() {
-  return R"(Watches a directory for changes.
+char const *const help{
+    R"(Watches a directory for changes.
 
 watch <Path>
 
@@ -149,14 +172,15 @@ Standard Error
 
 Error Codes
   1 - CreateFile. Could not open target directory for watching.
-  2 - ReadDirectoryChanges. Possibly too many changes to track.)";
-}
+  2 - ReadDirectoryChanges. Possibly too many changes to track.)"};
 
 int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
   if (argc > 1) {
     return watchDirectory(resolvePath(std::filesystem::path{argv[1]}));
   } else {
-    std::wcout << help() << std::endl;
+    std::wstringstream _{};
+    _ << help;
+    WriteOut(_);
   }
   return 0;
 }

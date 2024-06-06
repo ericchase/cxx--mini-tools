@@ -19,40 +19,49 @@ async function spawn({ command, args = [], options = {} }, stdout_cb = (_) => {}
   });
 }
 
+function removeNewlineEnding(data) {
+  if (data.endsWith('\r\n')) {
+    return data.slice(0, -2);
+  }
+  if (data.endsWith('\n')) {
+    return data.slice(0, -1);
+  }
+}
+
 try {
   await spawn(
     { command: 'cmake', args: '--build .\\build --config Debug --target ALL_BUILD -j 8 --'.split(' ') }, //
-    (chunk) => console.log(chunk.slice(0, -2).toString('utf8')),
-    (chunk) => console.log(chunk.slice(0, -2).toString('utf8'))
+    (chunk) => console.log(removeNewlineEnding(chunk.toString())),
+    (chunk) => console.log(removeNewlineEnding(chunk.toString()))
   );
   console.log();
   console.log(
     'Exit Code:',
     await watch({
       path: './test', //
-      debounce: 100,
+      debounce_interval: 1000,
       change_cb: (changes) => {
         for (const change of changes) {
           switch (change[0]) {
             case '0':
-              console.log('Watching', change.slice(2));
+              console.log('Watching', change);
               break;
             case '1':
-              console.log('   Added', change.slice(2));
+              console.log('   Added', change);
               break;
             case '2':
-              console.log(' Removed', change.slice(2));
+              console.log(' Removed', change);
               break;
             case '3':
-              console.log('Modified', change.slice(2));
+              console.log('Modified', change);
               break;
             case '4':
-              console.log(' Renamed', change.slice(2).split('\t').join(' -> '));
+              console.log(' Renamed', change.split('\t').join(' -> '));
               break;
           }
         }
       },
-      error_cb: (error) => console.log('Error:', error.slice(0, -2)),
+      error_cb: (error) => console.log('ERROR:', error),
     })
   );
 } catch (err) {
