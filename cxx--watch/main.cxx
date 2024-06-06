@@ -6,20 +6,23 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <tchar.h>
+
 #include <windows.h>
+#include <tchar.h>
 
 HANDLE stdio_out{GetStdHandle(STD_OUTPUT_HANDLE)};
 HANDLE stdio_err{GetStdHandle(STD_ERROR_HANDLE)};
-void WriteOut(std::wstringstream const &wss) {
+void writeGeneric(std::wstringstream const &wss, HANDLE const &stream) {
   DWORD bytes_written{0};
   std::wstring ws{wss.str()};
-  WriteFile(stdio_out, ws.c_str(), ws.size() * sizeof(wchar_t), &bytes_written, NULL);
+  ws += L'\n';
+  WriteFile(stream, ws.c_str(), ws.size() * sizeof(wchar_t), &bytes_written, NULL);
 }
-void WriteErr(std::wstringstream const &wss) {
-  DWORD bytes_written{0};
-  std::wstring ws{wss.str()};
-  WriteFile(stdio_err, ws.c_str(), ws.size() * sizeof(wchar_t), &bytes_written, NULL);
+void writeOut(std::wstringstream const &wss) {
+  writeGeneric(wss, stdio_out);
+}
+void writeErr(std::wstringstream const &wss) {
+  writeGeneric(wss, stdio_err);
 }
 
 std::filesystem::path resolvePath(std::filesystem::path const &path) {
@@ -48,8 +51,8 @@ int watchDirectory(std::filesystem::path const &path) {
 
   {
     std::wstringstream _{};
-    _ << "0 " << path;
-    WriteOut(_);
+    _ << "0 " << path.wstring();
+    writeOut(_);
   }
 
 _Start:
@@ -119,7 +122,7 @@ _Start:
           break;
         }
       }
-      WriteOut(out_changes);
+      writeOut(out_changes);
     }
     CloseHandle(hDirectory);
   }
@@ -127,7 +130,7 @@ _Start:
 _Exception_CreateFile: {
   std::wstringstream _{};
   _ << "1 CreateFile. Could not open target directory for watching.";
-  WriteErr(_);
+  writeErr(_);
   Sleep(delay_ms);
   goto _Start;
 }
@@ -135,7 +138,7 @@ _Exception_CreateFile: {
 _Exception_ReadDirectoryChanges: {
   std::wstringstream _{};
   _ << "2 ReadDirectoryChanges. Possibly too many changes to track.";
-  WriteErr(_);
+  writeErr(_);
   Sleep(delay_ms);
   goto _Start;
 }
@@ -180,7 +183,7 @@ int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
   } else {
     std::wstringstream _{};
     _ << help;
-    WriteOut(_);
+    writeOut(_);
   }
   return 0;
 }
