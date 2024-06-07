@@ -9,7 +9,7 @@ import * as child_process from 'node:child_process';
  */
 export function watch({ path, debounce_interval = 0, change_cb = (_) => {}, error_cb = (_) => {} }) {
   return new Promise(async (resolve, reject) => {
-    const p = child_process.spawn('watch.exe', [path], {
+    const p = child_process.spawn('.\\build\\Debug\\watch.exe', [path], {
       stdio: 'pipe',
     });
     p.on('close', (code) => {

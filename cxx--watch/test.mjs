@@ -1,39 +1,19 @@
 import * as child_process from 'node:child_process';
 import { watch } from './lib.watch.mjs';
 
-/**
- * @param {object} params
- * @param {string} params.command
- * @param {string[]=} params.args
- * @param {*=} params.options
- * @param {(changes:*)=>void=} stdout_cb
- * @param {(errors:*)=>void=} stderr_cb
- */
-async function spawn({ command, args = [], options = {} }, stdout_cb = (_) => {}, stderr_cb = (_) => {}) {
+async function execFile(file, args = [], options = {}) {
   return new Promise((resolve, reject) => {
-    const ps = child_process.spawn(command, args, options);
-    ps.on('close', (code) => resolve(code));
-    ps.on('error', (error) => reject(error));
-    ps.stdout.on('data', stdout_cb);
-    ps.stderr.on('data', stderr_cb);
+    child_process.execFile(file, args, options, (error, stdout, stderr) => {
+      if (error) reject(error);
+      resolve({ error, stdout, stderr });
+    });
   });
 }
 
-function removeNewlineEnding(data) {
-  if (data.endsWith('\r\n')) {
-    return data.slice(0, -2);
-  }
-  if (data.endsWith('\n')) {
-    return data.slice(0, -1);
-  }
-}
-
 try {
-  await spawn(
-    { command: 'cmake', args: '--build .\\build --config Debug --target ALL_BUILD -j 8 --'.split(' ') }, //
-    (chunk) => console.log(removeNewlineEnding(chunk.toString())),
-    (chunk) => console.log(removeNewlineEnding(chunk.toString()))
-  );
+  const build = await execFile('cmake', '--build .\\build --config Debug --target ALL_BUILD -j 8 --'.split(' '));
+  if (build.stdout) console.log(build.stdout);
+  if (build.stderr) console.log(build.stderr);
   console.log();
   console.log(
     'Exit Code:',
