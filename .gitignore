@@ -30,3 +30,4 @@ lerna-debug.log*
 
 # Keep
 !/.vscode/settings.json
+!/*.exe
