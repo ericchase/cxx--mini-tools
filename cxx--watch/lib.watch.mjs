@@ -1,4 +1,4 @@
-import * as child_process from 'node:child_process';
+import node_child_process from 'node:child_process';
 
 /**
  * @param {object} params
@@ -9,7 +9,7 @@ import * as child_process from 'node:child_process';
  */
 export function watch({ path, debounce_interval = 0, change_cb = (_) => {}, error_cb = (_) => {} }) {
   return new Promise(async (resolve, reject) => {
-    const p = child_process.spawn('.\\build\\Debug\\watch.exe', [path], {
+    const p = node_child_process.spawn('.\\build\\Debug\\watch.exe', [path], {
       stdio: 'pipe',
     });
     p.on('close', (code) => {
@@ -19,7 +19,7 @@ export function watch({ path, debounce_interval = 0, change_cb = (_) => {}, erro
       reject(error);
     });
     if (debounce_interval > 0) {
-      let changes = [];
+      let changes = /**@type{string[]}*/ ([]);
       p.stdout.on('data', (chunk) => {
         changes.push(chunk.toString('utf16le').slice(0, -1));
       });
