@@ -2,74 +2,97 @@
 #define _UNICODE
 
 #include <filesystem>
-#include <fstream>
 #include <iostream>
 #include <sstream>
-#include <string>
 
 #include <windows.h>
 #include <tchar.h>
 
 HANDLE stdio_out{GetStdHandle(STD_OUTPUT_HANDLE)};
 HANDLE stdio_err{GetStdHandle(STD_ERROR_HANDLE)};
-void writeGeneric(std::wstringstream const &wss, HANDLE const &stream) {
+void writeGeneric(std::wstring const &&ws, HANDLE const &stream) {
+  int csize{WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, NULL, 0, NULL, NULL)};
+  char *cstr = new char[csize]{};
+  WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, cstr, csize, NULL, NULL);
   DWORD bytes_written{0};
-  std::wstring ws{wss.str()};
+  WriteFile(stream, cstr, csize - 1, &bytes_written, NULL);
+  delete[] cstr;
+}
+void writeOut(std::wstringstream &wss) {
+  wss << "\n";
+  writeGeneric(wss.str(), stdio_out);
+}
+void writeOut(std::wstring &&ws) {
   ws += L'\n';
-  WriteFile(stream, ws.c_str(), ws.size() * sizeof(wchar_t), &bytes_written, NULL);
+  writeGeneric(std::move(ws), stdio_out);
 }
-void writeOut(std::wstringstream const &wss) {
-  writeGeneric(wss, stdio_out);
+void writeErr(std::wstringstream &wss) {
+  wss << "\n";
+  writeGeneric(wss.str(), stdio_err);
 }
-void writeErr(std::wstringstream const &wss) {
-  writeGeneric(wss, stdio_err);
+void writeErr(std::wstring &&ws) {
+  ws += L'\n';
+  writeGeneric(std::move(ws), stdio_err);
 }
 
 std::filesystem::path resolvePath(std::filesystem::path const &path) {
-  TCHAR lpBuffer[1]{};
-  // requiredSize includes space for the terminating null character
-  DWORD requiredSize = GetFullPathNameW(path.c_str(), 1, lpBuffer, NULL);
+  // `requiredSize` includes space for the terminating null character
+  DWORD requiredSize = GetFullPathNameW(path.c_str(), 0, NULL, NULL);
   if (requiredSize > 0) {
     TCHAR *lpBuffer = new TCHAR[requiredSize]{};
-    // copiedSize does NOT include the terminating null character
+    // `copiedSize` does NOT include the terminating null character
     DWORD copiedSize = GetFullPathNameW(path.c_str(), requiredSize, lpBuffer, NULL);
-    return std::filesystem::path{lpBuffer};
+    std::filesystem::path resolvedPath{lpBuffer};
+    delete[] lpBuffer;
+    return resolvedPath;
   }
   return std::filesystem::path{""};
 }
 
-/* Taken from https://gist.github.com/nickav/a57009d4fcc3b527ed0f5c9cf30618f8
-Assuming we are allowed to use this as it was presented as example code. */
+/**
+ * Adapted from https://gist.github.com/nickav/a57009d4fcc3b527ed0f5c9cf30618f8
+ * Assuming we are allowed to copy this as it was presented as example code.
+ */
 int watchDirectory(std::filesystem::path const &path) {
-  DWORD const buf_size{1024 * 16};
-  alignas(DWORD) uint8_t change_buf[buf_size]{};
-  OVERLAPPED overlapped{};
-  overlapped.hEvent = CreateEvent(NULL, FALSE, 0, NULL);
+  DWORD const buf_size{1024 * 1024 * 64};
+  uint8_t *change_buf = new uint8_t[buf_size]{};
   HANDLE hDirectory{INVALID_HANDLE_VALUE};
   BOOL bSuccess{0};
   int delay_ms{1000};
 
-  {
+  // If the function succeeds, the return value is a handle to the event object. If the named event object existed
+  // before the function call, the function returns a handle to the existing object and GetLastError returns
+  // ERROR_ALREADY_EXISTS. If the function fails, the return value is NULL. To get extended error information, call
+  // GetLastError.
+  OVERLAPPED overlapped{};
+  overlapped.hEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
+  if (overlapped.hEvent == NULL) {
     std::wstringstream _{};
-    _ << "0 " << path.wstring();
-    writeOut(_);
+    _ << "0 CreateEvent GetLastError: " << GetLastError();
+    writeErr(_);
+    goto _Exit;
   }
 
-_Start:
+_Start: {
+  bool bStartInit{true};
+
+  // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
+  hDirectory = CreateFileW( //
+      path.c_str(),         //
+      FILE_LIST_DIRECTORY,  //  For a directory, the right to list the contents of the directory.
+      FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, //
+      NULL,                                                   //
+      OPEN_EXISTING,                                          //
+      FILE_FLAG_BACKUP_SEMANTICS  // You must set this flag to obtain a handle to a directory.
+          | FILE_FLAG_OVERLAPPED, // The file or device is being opened or created for asynchronous I/O.
+      NULL                        //
+  );
+  if (hDirectory == INVALID_HANDLE_VALUE) {
+    writeErr(L"1 CreateFile. Could not open target directory for watching.");
+    goto _Reset;
+  }
+
   while (true) {
-    // https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew
-    hDirectory = CreateFileW( //
-        path.c_str(),         //
-        FILE_LIST_DIRECTORY,  //  For a directory, the right to list the contents of the directory.
-        FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, //
-        NULL,                                                   //
-        OPEN_EXISTING,                                          //
-        FILE_FLAG_BACKUP_SEMANTICS  // You must set this flag to obtain a handle to a directory.
-            | FILE_FLAG_OVERLAPPED, // The file or device is being opened or created for asynchronous I/O.
-        NULL                        //
-    );
-    if (hDirectory == INVALID_HANDLE_VALUE)
-      goto _Exception_CreateFile;
     // https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-readdirectorychangesw
     bSuccess = ReadDirectoryChangesW( //
         hDirectory,                   //
@@ -82,63 +105,87 @@ _Start:
                      // operation.
         NULL // A pointer to a completion routine to be called when the operation has been completed or canceled...
     );
-    if (bSuccess == 0)
-      goto _Exception_ReadDirectoryChanges;
+    if (bSuccess == 0) {
+      writeErr(L"2 ReadDirectoryChanges. Possibly too many changes to track.");
+      goto _Reset;
+    }
+
+    if (bStartInit) {
+      bStartInit = false;
+      writeOut(std::wstring(L"S ") + path.wstring());
+    }
 
     // https://learn.microsoft.com/en-us/windows/win32/api/synchapi/nf-synchapi-waitforsingleobject
-    DWORD result{WaitForSingleObject(overlapped.hEvent, delay_ms)};
-    if (result == WAIT_OBJECT_0) {
-      std::wstringstream out_changes{};
-      DWORD bytes_transferred{};
-      // https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-getoverlappedresult
-      GetOverlappedResult(hDirectory, &overlapped, &bytes_transferred, FALSE);
-      // https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-file_notify_information
-      FILE_NOTIFY_INFORMATION *event{(FILE_NOTIFY_INFORMATION *)change_buf};
-      for (;;) {
-        switch (event->Action) {
-        case FILE_ACTION_ADDED:
-          out_changes << "1 ";
-          break;
-        case FILE_ACTION_REMOVED:
-          out_changes << "2 ";
-          break;
-        case FILE_ACTION_MODIFIED:
-          out_changes << "3 ";
-          break;
-        case FILE_ACTION_RENAMED_OLD_NAME:
-          out_changes << "4 ";
-          break;
-        case FILE_ACTION_RENAMED_NEW_NAME:
-          out_changes << "\x09";
-          break;
+    DWORD signal{WaitForSingleObject(overlapped.hEvent, INFINITE)};
+    switch (signal) {
+      case WAIT_OBJECT_0: {
+        DWORD bytes_transferred{};
+        // https://learn.microsoft.com/en-us/windows/win32/api/ioapiset/nf-ioapiset-getoverlappedresult
+        bSuccess = GetOverlappedResult(hDirectory, &overlapped, &bytes_transferred, TRUE);
+        if (bSuccess == 0) {
+          std::wstringstream _{};
+          _ << "0 GetOverlappedResult GetLastError: " << GetLastError();
+          writeErr(_);
+          goto _Reset;
         }
-        DWORD name_len{event->FileNameLength / sizeof(wchar_t)};
-        out_changes << std::wstring{event->FileName, name_len};
 
-        // Are there more events to handle?
-        if (event->NextEntryOffset) {
-          *((uint8_t **)&event) += event->NextEntryOffset;
-        } else {
-          break;
+        std::wstringstream out_changes{};
+        // https://learn.microsoft.com/en-us/windows/win32/api/winnt/ns-winnt-file_notify_information
+        FILE_NOTIFY_INFORMATION *event{(FILE_NOTIFY_INFORMATION *)change_buf};
+        for (;;) {
+          switch (event->Action) {
+            case FILE_ACTION_ADDED:
+              out_changes << "C ";
+              break;
+            case FILE_ACTION_REMOVED:
+              out_changes << "D ";
+              break;
+            case FILE_ACTION_MODIFIED:
+              out_changes << "M ";
+              break;
+            case FILE_ACTION_RENAMED_OLD_NAME:
+              out_changes << "R ";
+              break;
+            case FILE_ACTION_RENAMED_NEW_NAME:
+              out_changes << "\x09";
+              break;
+          }
+
+          {
+            DWORD name_len{event->FileNameLength / sizeof(wchar_t)};
+            out_changes << std::wstring{event->FileName, name_len};
+          }
+
+          // Are there more events to handle?
+          if (event->NextEntryOffset) {
+            *((uint8_t **)&event) += event->NextEntryOffset;
+          } else {
+            break;
+          }
         }
+        if (!out_changes.str().empty()) {
+          writeOut(out_changes);
+        }
+      } break;
+      case WAIT_FAILED: {
+        break;
       }
-      writeOut(out_changes);
     }
-    CloseHandle(hDirectory);
+    // If the function succeeds, the return value is nonzero.
+    // If the function fails, the return value is zero. To get extended error information, call GetLastError.
+    bSuccess = ResetEvent(overlapped.hEvent);
+    if (bSuccess == 0) {
+      std::wstringstream _{};
+      _ << "0 ResetEvent GetLastError: " << GetLastError();
+      writeErr(_);
+      goto _Exit;
+    }
   }
-
-_Exception_CreateFile: {
-  std::wstringstream _{};
-  _ << "1 CreateFile. Could not open target directory for watching.";
-  writeErr(_);
-  Sleep(delay_ms);
-  goto _Start;
+  goto _Exit;
 }
 
-_Exception_ReadDirectoryChanges: {
-  std::wstringstream _{};
-  _ << "2 ReadDirectoryChanges. Possibly too many changes to track.";
-  writeErr(_);
+_Reset: {
+  CloseHandle(hDirectory);
   Sleep(delay_ms);
   goto _Start;
 }
@@ -148,8 +195,7 @@ _Exit:
   return 0;
 }
 
-char const *const help{
-    R"(Watches a directory for changes.
+auto Help{LR"(Watches a directory for changes.
 
 watch <Path>
 
@@ -162,12 +208,12 @@ Standard Output
     Tab - The tab key. Usually ascii value \x09.
 
 Change Codes
-  0 - Watching
+  S - Started or restarted watching path
       - <Change Code> <Absolute Path>
-  1 - Added
-  2 - Removed
-  3 - Modified
-  4 - Renamed 
+  C - Created path
+  D - Deleted path
+  M - Modified path
+  R - Renamed path
       - <Change Code> <Old Path><Tab><New Path>
 
 Standard Error
@@ -181,9 +227,7 @@ int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
   if (argc > 1) {
     return watchDirectory(resolvePath(std::filesystem::path{argv[1]}));
   } else {
-    std::wstringstream _{};
-    _ << help;
-    writeOut(_);
+    writeOut(Help);
   }
   return 0;
 }

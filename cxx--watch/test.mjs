@@ -43,19 +43,19 @@ try {
       change_cb: (changes) => {
         for (const change of changes) {
           switch (change[0]) {
-            case '0':
+            case 'S':
               console.log('watching >', change.slice(2));
               break;
-            case '1':
+            case 'C':
               console.log('   added >', change.slice(2));
               break;
-            case '2':
+            case 'D':
               console.log(' removed >', change.slice(2));
               break;
-            case '3':
+            case 'M':
               console.log('modified >', change.slice(2));
               break;
-            case '4':
+            case 'R':
               console.log(' renamed >', change.slice(2).split('\t').join(' -> '));
               break;
           }

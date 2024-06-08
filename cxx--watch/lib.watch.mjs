@@ -21,7 +21,7 @@ export function watch({ path, debounce_interval = 0, change_cb = (_) => {}, erro
     if (debounce_interval > 0) {
       let changes = /**@type{string[]}*/ ([]);
       p.stdout.on('data', (chunk) => {
-        changes.push(chunk.toString('utf16le').slice(0, -1));
+        changes.push(chunk.toString('utf8').slice(0, -1));
       });
       setInterval(() => {
         if (changes.length > 0) {
@@ -31,11 +31,11 @@ export function watch({ path, debounce_interval = 0, change_cb = (_) => {}, erro
       }, debounce_interval).unref();
     } else {
       p.stdout.on('data', (chunk) => {
-        change_cb([chunk.toString('utf16le').slice(0, -1)]);
+        change_cb([chunk.toString('utf8').slice(0, -1)]);
       });
     }
     p.stderr.on('data', (chunk) => {
-      error_cb(chunk.toString('utf16le').slice(0, -1));
+      error_cb(chunk.toString('utf8').slice(0, -1));
     });
   });
 }
