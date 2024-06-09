@@ -8,32 +8,9 @@
 #include <windows.h>
 #include <tchar.h>
 
-HANDLE stdio_out{GetStdHandle(STD_OUTPUT_HANDLE)};
-HANDLE stdio_err{GetStdHandle(STD_ERROR_HANDLE)};
-void writeGeneric(std::wstring const &&ws, HANDLE const &stream) {
-  int csize{WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, NULL, 0, NULL, NULL)};
-  char *cstr = new char[csize]{};
-  WideCharToMultiByte(CP_UTF8, 0, ws.c_str(), -1, cstr, csize, NULL, NULL);
-  DWORD bytes_written{0};
-  WriteFile(stream, cstr, csize - 1, &bytes_written, NULL);
-  delete[] cstr;
-}
-void writeOut(std::wstringstream &wss) {
-  wss << "\n";
-  writeGeneric(wss.str(), stdio_out);
-}
-void writeOut(std::wstring &&ws) {
-  ws += L'\n';
-  writeGeneric(std::move(ws), stdio_out);
-}
-void writeErr(std::wstringstream &wss) {
-  wss << "\n";
-  writeGeneric(wss.str(), stdio_err);
-}
-void writeErr(std::wstring &&ws) {
-  ws += L'\n';
-  writeGeneric(std::move(ws), stdio_err);
-}
+#include "help.hxx"
+#include "../info.hxx"
+#include "../main.hxx"
 
 std::filesystem::path resolvePath(std::filesystem::path const &path) {
   // `requiredSize` includes space for the terminating null character
@@ -195,39 +172,13 @@ _Exit:
   return 0;
 }
 
-auto Help{LR"(Watches a directory for changes.
-
-watch <Path>
-
-  Path - Relative or absolute directory path for target directory.
-
-Standard Output
-  <Change Code> <Path>[<Tab><Path>]
-
-    Path - Relative to target directory, except for Change Code 0.
-    Tab - The tab key. Usually ascii value \x09.
-
-Change Codes
-  S - Started or restarted watching path
-      - <Change Code> <Absolute Path>
-  C - Created path
-  D - Deleted path
-  M - Modified path
-  R - Renamed path
-      - <Change Code> <Old Path><Tab><New Path>
-
-Standard Error
-  <Error Code> <Short Description>
-
-Error Codes
-  1 - CreateFile. Could not open target directory for watching.
-  2 - ReadDirectoryChanges. Possibly too many changes to track.)"};
-
 int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
   if (argc > 1) {
     return watchDirectory(resolvePath(std::filesystem::path{argv[1]}));
   } else {
-    writeOut(Help);
+    std::wstringstream wss{};
+    wss << Help << "\n\n" << Break << "\n\n" << Info;
+    writeOut(wss);
   }
   return 0;
 }

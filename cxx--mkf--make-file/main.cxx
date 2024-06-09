@@ -4,20 +4,14 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <sstream>
 
+#include <windows.h>
 #include <tchar.h>
 
-char const *const help{
-    R"(Creates one or more files.
-Intermediate directories in path will also be created.
-
-mkf path [+ path] [+ ...]
-
-  path    Specifies a relative or absolute file path.
-
-Examples:
-  mk file ...
-  mk path/to/file ...)"};
+#include "help.hxx"
+#include "../info.hxx"
+#include "../main.hxx"
 
 void makePath(std::filesystem::path const &path) {
   std::filesystem::path parent = path.parent_path();
@@ -34,7 +28,9 @@ int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
       makePath(std::filesystem::path{argv[i]});
     }
   } else {
-    std::cout << help << std::endl;
+    std::wstringstream wss{};
+    wss << Help << "\n\n" << Break << "\n\n" << Info;
+    writeOut(wss);
   }
 
   return 0;
