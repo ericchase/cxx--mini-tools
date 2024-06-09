@@ -23,5 +23,6 @@ Standard Error
   <Error Code> <Short Description>
 
 Error Codes
+  0 - Check Windows System Error Codes for the GetLastError value.
   1 - CreateFile. Could not open target directory for watching.
   2 - ReadDirectoryChanges. Possibly too many changes to track.)"};
