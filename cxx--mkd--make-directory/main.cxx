@@ -17,8 +17,9 @@ void makePath(std::filesystem::path const &path) {
 }
 
 int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
+  SetConsoleOutputCP(65001);          // set console output code page to utf-8
+
   if (argc > 1) {
-    // don't know how to do array.map, so we're using for loop
     for (int i = 1; i < argc; ++i) { // 0th arg is program path
       makePath(std::filesystem::path{argv[i]});
     }
@@ -27,6 +28,5 @@ int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
     wss << Help << "\n\n" << Break << "\n\n" << Info;
     writeOut(wss);
   }
-
   return 0;
 }
