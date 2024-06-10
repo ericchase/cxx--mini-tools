@@ -173,6 +173,8 @@ _Exit:
 }
 
 int _tmain(int argc, TCHAR *argv[]) { // requires <tchar.h>
+  SetConsoleOutputCP(65001);          // set console output code page to utf-8
+
   if (argc > 1) {
     return watchDirectory(resolvePath(std::filesystem::path{argv[1]}));
   } else {

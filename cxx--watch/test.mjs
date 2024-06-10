@@ -1,5 +1,5 @@
 import node_child_process from 'node:child_process';
-import { watch } from './lib.watch.mjs';
+import { Watch } from './lib-watch.mjs';
 
 /**
  * @param {string} program
@@ -37,8 +37,9 @@ try {
   console.log();
   console.log(
     'Exit Code:',
-    await watch({
+    await Watch({
       path: './test', //
+      watch_path: '.\\build\\Debug\\watch.exe',
       debounce_interval: 250,
       change_cb: (changes) => {
         for (const change of changes) {

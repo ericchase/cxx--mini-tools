@@ -6,10 +6,11 @@ import node_child_process from 'node:child_process';
  * @param {number=} params.debounce_interval
  * @param {(changes:string[])=>void=} params.change_cb
  * @param {(error:string)=>void=} params.error_cb
+ * @param {string=} params.watch_path
  */
-export function watch({ path, debounce_interval = 0, change_cb = (_) => {}, error_cb = (_) => {} }) {
+export function Watch({ path, debounce_interval = 0, change_cb = (_) => {}, error_cb = (_) => {}, watch_path = 'watch' }) {
   return new Promise(async (resolve, reject) => {
-    const p = node_child_process.spawn('.\\build\\Debug\\watch.exe', [path], {
+    const p = node_child_process.spawn(watch_path, [path], {
       stdio: 'pipe',
     });
     p.on('close', (code) => {
