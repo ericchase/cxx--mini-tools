@@ -1,4 +1,5 @@
 // requires
+// #include <filesystem>
 // #include <sstream>
 //
 // #include <windows.h>
@@ -29,4 +30,25 @@ void writeErr(std::wstringstream &wss) {
 void writeErr(std::wstring &&ws) {
   ws += L'\n';
   writeGeneric(std::move(ws), stdio_err);
+}
+
+std::filesystem::path resolvePath(std::filesystem::path const &path) {
+  // `requiredSize` includes space for the terminating null character
+  DWORD requiredSize = GetFullPathNameW(path.c_str(), 0, NULL, NULL);
+  if (requiredSize > 0) {
+    TCHAR *lpBuffer = new TCHAR[requiredSize]{};
+    // `copiedSize` does NOT include the terminating null character
+    DWORD copiedSize = GetFullPathNameW(path.c_str(), requiredSize, lpBuffer, NULL);
+    // remove trailing slash
+    switch (lpBuffer[copiedSize - 1]) {
+      case '\\':
+      case '/':
+        lpBuffer[copiedSize - 1] = 0;
+        break;
+    }
+    std::filesystem::path resolvedPath{lpBuffer};
+    delete[] lpBuffer;
+    return resolvedPath;
+  }
+  return std::filesystem::path{""};
 }

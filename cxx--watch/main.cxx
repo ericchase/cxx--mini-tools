@@ -12,20 +12,6 @@
 #include "../info.hxx"
 #include "../main.hxx"
 
-std::filesystem::path resolvePath(std::filesystem::path const &path) {
-  // `requiredSize` includes space for the terminating null character
-  DWORD requiredSize = GetFullPathNameW(path.c_str(), 0, NULL, NULL);
-  if (requiredSize > 0) {
-    TCHAR *lpBuffer = new TCHAR[requiredSize]{};
-    // `copiedSize` does NOT include the terminating null character
-    DWORD copiedSize = GetFullPathNameW(path.c_str(), requiredSize, lpBuffer, NULL);
-    std::filesystem::path resolvedPath{lpBuffer};
-    delete[] lpBuffer;
-    return resolvedPath;
-  }
-  return std::filesystem::path{""};
-}
-
 /**
  * Adapted from https://gist.github.com/nickav/a57009d4fcc3b527ed0f5c9cf30618f8
  * Assuming we are allowed to copy this as it was presented as example code.
