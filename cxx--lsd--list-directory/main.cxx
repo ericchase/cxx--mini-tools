@@ -40,7 +40,7 @@ int listDirectory(TCHAR *path, TCHAR *filter = NULL) {
     DWORD last_error{GetLastError()};
     switch (last_error) {
       case 2:
-        writeErr(L"1 File not found.");
+        writeErr(L"2 FindFirstFile. No files found.");
         break;
       case 18:
         // There are no more files.

@@ -20,5 +20,5 @@ Standard Error
 
 Error Codes
   0 - Check Windows System Error Codes for the GetLastError value.
-  1 - CreateFile. Could not open found file or directory.
+  1 - CreateFile. Could not open target directory for watching.
   2 - FindFirstFile. No files found.)"};

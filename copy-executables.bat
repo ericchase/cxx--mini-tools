@@ -1,2 +1,2 @@
-@call bunr .\copy-executables.mts
+@call bunr .\automation-scripts\copy-executables.mts
 pause

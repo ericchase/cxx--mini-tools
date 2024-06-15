@@ -1,2 +1,2 @@
-@call bunr .\open-projects.mts
+@call bunr .\automation-scripts\open-projects.mts
 pause
