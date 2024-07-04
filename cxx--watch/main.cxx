@@ -110,7 +110,7 @@ _Start: {
               out_changes << "R ";
               break;
             case FILE_ACTION_RENAMED_NEW_NAME:
-              out_changes << "\x09";
+              out_changes << "T ";
               break;
           }
 
@@ -122,6 +122,7 @@ _Start: {
           // Are there more events to handle?
           if (event->NextEntryOffset) {
             *((uint8_t **)&event) += event->NextEntryOffset;
+            out_changes << "\n";
           } else {
             break;
           }

@@ -9,16 +9,19 @@ Standard Output
   <Code> <Name>
 
     Code - A code to distinguish between files and directories.
-    Name - File or directory name found within target directory (non-recursive).
+    Name - File or directory name within target directory.
 
 Codes
   F - File
   D - Directory
 
 Standard Error
-  <Error Code> <Short Description>
+  <Error Code> <Path>
 
 Error Codes
-  0 - Check Windows System Error Codes for the GetLastError value.
-  1 - CreateFile. Could not open target directory for watching.
-  2 - FindFirstFile. No files found.)"};
+  1 - CreateFileW. Could not open target directory for watching.
+  2 - FindFirstFileW. No files found.
+
+Error Code 0
+  <Error Code> <Function Name> GetLastError: <GetLastError>
+  0 - Check Windows System Error Codes for the GetLastError value.)"};

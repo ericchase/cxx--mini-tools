@@ -40,7 +40,7 @@ int listDirectory(TCHAR *path, TCHAR *filter = NULL) {
     DWORD last_error{GetLastError()};
     switch (last_error) {
       case 2:
-        writeErr(L"2 FindFirstFile. No files found.");
+        writeErr(L"2 " + std::wstring{path});
         break;
       case 18:
         // There are no more files.
@@ -71,14 +71,14 @@ _FindNext: {
         FILE_FLAG_BACKUP_SEMANTICS,                                               //
         NULL                                                                      //
         )};
+    std::wstring relative_path{std::wstring{path} + L"\\" + find_data.cFileName};
     if (hFile == INVALID_HANDLE_VALUE) {
-      writeErr(L"1 CreateFile. Could not open target directory for watching.");
+      writeErr(L"1 " + relative_path);
     } else {
       BY_HANDLE_FILE_INFORMATION file_info{};
       BOOL bSuccess{GetFileInformationByHandle(hFile, &file_info)};
-      std::wstringstream _{};
-      _ << ((file_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? L"D " : L"F ") << find_data.cFileName;
-      writeOut(_);
+      std::wstring path_kind{(file_info.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) ? L"D" : L"F"};
+      writeOut(path_kind + L" " + find_data.cFileName);
     }
     CloseHandle(hFile);
   }

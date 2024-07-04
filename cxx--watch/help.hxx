@@ -5,7 +5,7 @@ watch <Path>
   Path - Relative or absolute directory path for target directory.
 
 Standard Output
-  <Change Code> <Path>[<Tab><Path>]
+  <Change Code> <Path>
 
     Path - Relative to target directory, except for Change Code 0.
     Tab - The tab key. Usually ascii value \x09.
@@ -16,8 +16,8 @@ Change Codes
   C - Created path
   D - Deleted path
   M - Modified path
-  R - Renamed path
-      - <Change Code> <Old Path><Tab><New Path>
+  R - Renamed path, Old name
+  T - Renamed path, New name
 
 Standard Error
   <Error Code> <Short Description>
