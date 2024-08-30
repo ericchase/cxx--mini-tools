@@ -1,0 +1,17 @@
+syncing
+- filters (*?)
+- ignores
+- hash database?
+-- if destination file write time > source file write time, then don't sync
+-- source file write time > destination file write time, but they are different
+---- cache
+
+not implemented
+- symbolic link handling
+
+
+user flows
+- source
+  - change source -> update destination
+    - unless, destination is different from cache
+- destination
